@@ -228,30 +228,53 @@ router.get("/update2/:result2/:picID", (req, res) => {
   });
 });
 
-router.get("/rank", (req, res) => {
-  // ดึงข้อมูลจากตาราง picture และ score_history
-  let sql = `
-      SELECT p.*, p.totalVote - s.old_score as score_change, s.updated_at as latest_update
-      FROM picture p
-      LEFT JOIN (
-          SELECT pid, old_score, updated_at,
-          ROW_NUMBER() OVER (PARTITION BY pid ORDER BY updated_at DESC) as row_num
-          FROM score_history
-      ) s ON p.pid = s.pid AND s.row_num = 1
-      ORDER BY p.totalVote DESC;
-  `;
-  conn.query(sql, (err, result, fields) => {
+// router.get("/rank", (req, res) => {
+//   // ดึงข้อมูลจากตาราง picture และ score_history
+//   let sql = `
+//       SELECT p.*, p.totalVote - s.old_score as score_change, s.updated_at as latest_update
+//       FROM picture p
+//       LEFT JOIN (
+//           SELECT pid, old_score, updated_at,
+//           ROW_NUMBER() OVER (PARTITION BY pid ORDER BY updated_at DESC) as row_num
+//           FROM score_history
+//       ) s ON p.pid = s.pid AND s.row_num = 1
+//       ORDER BY p.totalVote DESC;
+//   `;
+//   conn.query(sql, (err, result, fields) => {
+//       if (err) {
+//           console.error(err);
+//           return res.status(500).json({ message: "Error retrieving rank data", error: err.message });
+//       }
+//       res.json(result);
+//   });
+// });
+
+router.get("/rankupdate/:oldsc/:pid/:date", (req, res) => {
+  const  { oldsc, pid, date }  = req.params;
+    let insertUserQuery = "INSERT INTO `score`(`pid`, `old_score`,`date`) VALUES (?,?,?)";
+    insertUserQuery = mysql.format(insertUserQuery, [pid, oldsc,date]);
+    conn.query(insertUserQuery, (err, result) => {
       if (err) {
-          console.error(err);
-          return res.status(500).json({ message: "Error retrieving rank data", error: err.message });
+        res.status(500);
       }
-      res.json(result);
+
+      res.status(201).json({
+        affected_row: result.affectedRows,
+        last_idx: result.insertId,
+      });
+    });
+  });
+;
+
+router.get("/ranktoday/:date", (req, res) => { 
+  const date = req.params.date;
+  conn.query('select * from score where date = ?',[date], (err, result, fields)=>{
+    if(err){
+      res.status(500);
+    }
+    res.json(result);
   });
 });
-
-
-
-
 
 
 
