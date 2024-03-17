@@ -294,6 +294,7 @@ router.get("/rankupdate/:oldsc/:pid/:date", (req, res) => {
 
 
 
+
 router.get("/ranktoday/:date", (req, res) => { 
   const date = req.params.date;
   conn.query('SELECT * FROM score WHERE date = ? ORDER BY old_score DESC',[date], (err, result, fields)=>{
@@ -304,6 +305,104 @@ router.get("/ranktoday/:date", (req, res) => {
   });
 });
 
+router.get("/oldrank/:date", (req, res) => {
+ const date = req.params.date;
+
+ const sql = `
+    SELECT score.*, picture.namepic, picture.img
+    FROM score
+    JOIN picture ON score.pid = picture.pid
+    WHERE score.date = ?
+    ORDER BY score.old_score DESC
+ `;
+
+ conn.query(sql, [date], (err, result, fields) => {
+    if (err) {
+      res.status(500).send(err);
+    } else {
+      // ตรวจสอบว่ามีข้อมูลหรือไม่ และจำนวนข้อมูลที่ต้องการ
+      if (result.length > 0) {
+        // เก็บข้อมูลที่มีคะแนนสูงสุด
+        let topScores = [];
+        // เก็บ pid ที่มีคะแนนสูงสุด
+        let topPids: any[] = [];
+
+        // วนลูปผ่านข้อมูลเพื่อหา pid ที่มีคะแนนสูงสุด
+        for (const row of result) {
+          if (!topPids.includes(row.pid)) {
+            topPids.push(row.pid);
+            topScores.push(row);
+          }
+        }
+
+        // ส่งข้อมูลที่มี pid ที่มีคะแนนสูงสุด
+        res.json(topScores);
+      } else {
+        res.json({ message: "No data found" });
+      }
+    }
+ });
+});
+
+// // สมมติว่าคุณมี endpoint สำหรับตรวจสอบข้อมูลในตาราง rank
+// router.get("/checkrank/:pid/:namepic/:old_score/:date", (req, res) => {
+//   const { pid, namepic, old_score, date } = req.params;
+ 
+//   const sql = `
+//      SELECT * FROM rank
+//      WHERE pid = ? AND namepic = ? AND old_score = ? AND date = ?
+//   `;
+ 
+//   conn.query(sql, [pid, namepic, old_score, date], (err, result) => {
+//      if (err) {
+//        res.status(500).send(err);
+//      } else {
+//        // ส่งกลับว่ามีข้อมูลหรือไม่
+//        res.json({ exists: result.length > 0 });
+//      }
+//   });
+//  });
+ 
+
+router.get("/insertrank/:pid/:namepic/:oldsc/:date", (req, res) => {
+  const { pid, namepic, oldsc, date } = req.params;
+ 
+  // ตรวจสอบว่ามีข้อมูลที่ตรงกับเงื่อนไขหรือไม่
+  let checkQuery = "SELECT * FROM `rank` WHERE `pid` = ? AND `namepic` = ? AND `old_score` = ? AND `date` = ?";
+  checkQuery = mysql.format(checkQuery, [pid, namepic, oldsc, date]);
+ 
+  conn.query(checkQuery, (err, result) => {
+     if (err) {
+       res.status(500).send(err);
+       return;
+     }
+ 
+     // ถ้าไม่มีข้อมูลที่ตรงกับเงื่อนไข ทำการ insert
+     if (result.length === 0) {
+       let insertUserQuery = "INSERT INTO `rank`(`pid`, `namepic`,`old_score`,`date`) VALUES (?,?,?,?)";
+       insertUserQuery = mysql.format(insertUserQuery, [pid, namepic, oldsc, date]);
+ 
+       conn.query(insertUserQuery, (err, result) => {
+         if (err) {
+           res.status(500).send(err);
+           return;
+         }
+ 
+         res.status(201).json({
+           affected_row: result.affectedRows,
+           last_idx: result.insertId,
+         });
+       });
+     } else {
+       // ถ้ามีข้อมูลที่ตรงกับเงื่อนไข ส่งกลับข้อมูลที่มีอยู่
+       res.status(200).json({
+         message: "Data already exists, no insert needed.",
+         existing_data: result,
+       });
+     }
+  });
+ });
+ 
 
 
 
