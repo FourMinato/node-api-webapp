@@ -109,7 +109,33 @@ router.get("/", (req, res) => {
       res.json(result);
     });
   });  
-  
+  router.get("/picture/:pid", (req, res) => {
+    const pid = req.params.pid;
+    conn.query('select * from picture where pid = ?',[pid], (err, result, fields)=>{
+      if(err){
+        res.status(500);
+      }
+      res.json(result);
+    });
+  });  
+  router.get("/oldscore/:pid", (req, res) => {
+    const pid = req.params.pid;
+    conn.query('select * from score where pid = ?',[pid], (err, result, fields)=>{
+      if(err){
+        res.status(500);
+      }
+      res.json(result);
+    });
+  }); 
+  router.get("/scoretmr/:pid/:tmr", (req, res) => {
+    const { pid, tmr } = req.params;
+    conn.query('select * from score where pid = ? and date = ?',[pid, tmr], (err, result, fields)=>{
+      if(err){
+        res.status(500);
+      }
+      res.json(result);
+    });
+  });  
 
 
   
@@ -228,26 +254,26 @@ router.get("/update2/:result2/:picID", (req, res) => {
   });
 });
 
-// router.get("/rank", (req, res) => {
-//   // ดึงข้อมูลจากตาราง picture และ score_history
-//   let sql = `
-//       SELECT p.*, p.totalVote - s.old_score as score_change, s.updated_at as latest_update
-//       FROM picture p
-//       LEFT JOIN (
-//           SELECT pid, old_score, updated_at,
-//           ROW_NUMBER() OVER (PARTITION BY pid ORDER BY updated_at DESC) as row_num
-//           FROM score_history
-//       ) s ON p.pid = s.pid AND s.row_num = 1
-//       ORDER BY p.totalVote DESC;
-//   `;
-//   conn.query(sql, (err, result, fields) => {
-//       if (err) {
-//           console.error(err);
-//           return res.status(500).json({ message: "Error retrieving rank data", error: err.message });
-//       }
-//       res.json(result);
-//   });
-// });
+router.get("/rank", (req, res) => {
+  // ดึงข้อมูลจากตาราง picture และ score_history
+  let sql = `
+      SELECT p.*, p.totalVote - s.old_score as score_change, s.updated_at as latest_update
+      FROM picture p
+      LEFT JOIN (
+          SELECT pid, old_score, updated_at,
+          ROW_NUMBER() OVER (PARTITION BY pid ORDER BY updated_at DESC) as row_num
+          FROM score_history
+      ) s ON p.pid = s.pid AND s.row_num = 1
+      ORDER BY p.totalVote DESC;
+  `;
+  conn.query(sql, (err, result, fields) => {
+      if (err) {
+          console.error(err);
+          return res.status(500).json({ message: "Error retrieving rank data", error: err.message });
+      }
+      res.json(result);
+  });
+});
 
 router.get("/rankupdate/:oldsc/:pid/:date", (req, res) => {
   const  { oldsc, pid, date }  = req.params;
@@ -266,9 +292,11 @@ router.get("/rankupdate/:oldsc/:pid/:date", (req, res) => {
   });
 ;
 
+
+
 router.get("/ranktoday/:date", (req, res) => { 
   const date = req.params.date;
-  conn.query('select * from score where date = ?',[date], (err, result, fields)=>{
+  conn.query('SELECT * FROM score WHERE date = ? ORDER BY old_score DESC',[date], (err, result, fields)=>{
     if(err){
       res.status(500);
     }
