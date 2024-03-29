@@ -57,7 +57,7 @@ router.post("/img/:uid/:imglength", fileUpload.diskLoader.single("file"), async 
    
   const filename = Date.now() + "-" + Math.round(Math.random() * 10000) + ".png";
  
-  const storageRef = ref(storage, "/images/" + filename); // สร้างโฟลเดอร์เก็บรูป
+  const storageRef = ref(storage, "/picture/" + filename); // สร้างโฟลเดอร์เก็บรูป
  
   const metadata = {
      contentType: req.file!.mimetype
