@@ -15,49 +15,26 @@ totalVote: string;
 
 }
 
-// router.get("/", (req, res) => {
-//   res.send("Get in trip.ts");
-// });
-
-// router.get("/:id", (req, res) => {
-//     res.send("Get in trip.ts id: " + req.params.id);
-//   });
-
-// router.get('/', (req, res) => {
-//     if (req.query.id) {
-//       res.send("Get in trip.ts Query id: " + req.query.id);
-//     } else {
-//       res.send("Get in trip.ts");
-//     }
-//   });
-
-//   router.post("/", (req, res) => {
-//     let body = req.body; 
-//     res.send("Get in trip.ts body: " + body);
-//   });
-
-//   router.post("/", (req, res) => {
-//     let body = req.body; 
-//     res.send("Get in trip.ts body: " + JSON.stringify(body));
-//   });
-
-// router.post("/", (req, res) => {
-//     let body = req.body;
-//     res.status(201);
-//     res.send("Get in trip.ts body: " + JSON.stringify(body));
-//     });
-
-
 router.get("/", (req, res) => {
     conn.query('select * from user', (err, result, fields)=>{
       res.json(result);
     });
   });
 
-  router.get("/check/:email/:password", (req, res) => {
-    const em = req.params.email;
-    const pw = req.params.password;
-    conn.query('select * from user where email = ? AND password = ?',[em, pw], (err, result, fields)=>{
+  // router.get("/check/:email/:password", (req, res) => {
+  //   const em = req.params.email;
+  //   const pw = req.params.password;
+  //   conn.query('select * from user where email = ? AND password = ?',[em, pw], (err, result, fields)=>{
+  //     if(err){
+  //       res.status(500);
+  //     }
+  //     res.json(result);
+  //   });
+  // });
+
+  router.get("/check/:uid", (req, res) => {
+    const uid = req.params.uid;
+    conn.query('select * from user where uid = ?',[uid], (err, result, fields)=>{
       if(err){
         res.status(500);
       }
@@ -65,9 +42,9 @@ router.get("/", (req, res) => {
     });
   });
 
-  router.get("/check/:uid", (req, res) => {
-    const uid = req.params.uid;
-    conn.query('select * from user where uid = ?',[uid], (err, result, fields)=>{
+  router.get("/checkEmPw/:email/:password", (req, res) => {
+    const { email, password } = req.params;
+    conn.query('select * from user where email = ? AND password = ?',[email, password], (err, result, fields)=>{
       if(err){
         res.status(500);
       }
@@ -85,10 +62,123 @@ router.get("/", (req, res) => {
       }
     });
   });
+  router.put("/user/profile/update", (req, res) => {
+    const { name, email, password, profile } = req.body;
+    const uid = req.body.uid; // หรือใช้ req.params.uid หาก uid ถูกส่งมาใน URL
 
+    const query = 'UPDATE user SET name = ?, email = ?, password = ?, profile = ? WHERE uid = ?';
+    conn.query(query, [name, email, password, profile, uid], (err, result) => {
+      if(err){
+        res.status(500).send(err); 
+      } else {
+        res.json({ message: 'Profile updated successfully' });
+      }
+    });
+});
 
+router.get("/user/newname/:name/:uid", (req, res) => {
+  const { name, uid } = req.params;// หรือใช้ req.params.uid หาก uid ถูกส่งมาใน URL
 
+  const query = 'UPDATE user SET name = ?WHERE uid = ?';
+  conn.query(query, [name,uid], (err, result) => {
+    if(err){
+      res.status(500).send(err); 
+    } else {
+      res.json({ message: 'Profile updated successfully' });
+    }
+  });
+});
 
+router.get("/user/newemail/:email/:password/:uid", (req, res) => {
+  const { email,password, uid } = req.params;// หรือใช้ req.params.uid หาก uid ถูกส่งมาใน URL
+
+  const query = 'UPDATE user SET email = ?, password = ? WHERE uid = ?';
+  conn.query(query, [email,password ,uid], (err, result) => {
+    if(err){
+      res.status(500).send(err); 
+    } else {
+      res.json(result);
+    }
+  });
+});
+router.get("/user/:type", (req, res) => {
+  const type = req.params.type;
+  conn.query('select * from user where type = ?',[type] , (err, result, fields)=>{
+    res.json(result);
+  });
+});
+
+router.get("/picuser/:uid", (req, res) => {
+  const uid = req.params.uid;
+  conn.query('select * from picture where uid = ?',[uid] , (err, result, fields)=>{
+    res.json(result);
+  });
+});
+
+router.get("/imgupload/:uid/:length", (req, res) => {
+  const { uid, length } = req.params;
+  conn.query('select * from picture where pid = ? AND img_length = ?',[uid, length], (err, result, fields)=>{
+    if(err){
+      res.status(500);
+    }
+    res.json(result);
+  });
+});  
+
+router.get("/nullImage/:uid/:length", (req, res) => {
+  const { uid, length } = req.params;
+  let sql = "UPDATE `picture` SET `totalVote`=NULL, `img`=NULL, `namepic`=NULL WHERE `uid`=? AND `img_length`=?";
+  sql = mysql.format(sql, [uid, length]);
+  
+  conn.query(sql, (err, result) => {
+    if (err) {
+      throw err;
+    } else {
+      // เมื่อทำการอัปเดตข้อมูลแล้ว สามารถดึงค่า pid ที่อัปเดตได้
+      let selectSql = "SELECT pid FROM `picture` WHERE `uid`=? AND `img_length`=?";
+      selectSql = mysql.format(selectSql, [uid, length]);
+
+      conn.query(selectSql, (selectErr, selectResult) => {
+        if (selectErr) {
+          throw selectErr;
+        } else {
+          // หากมี pid ที่ได้รับค่ามา
+          if (selectResult.length > 0) {
+            const pidToDelete = selectResult[0].pid;
+
+            // ลบแถวทั้งหมดในตาราง score ที่มี pid เท่ากับค่าที่ได้รับมา
+            let deleteSql = "DELETE FROM `score` WHERE `pid`=?";
+            deleteSql = mysql.format(deleteSql, [pidToDelete]);
+
+            conn.query(deleteSql, (deleteErr, deleteResult) => {
+              if (deleteErr) {
+                throw deleteErr;
+              } else {
+                res.status(201).json({ 
+                  affected_row: result.affectedRows,
+                  pid: pidToDelete
+                });
+              }
+            });
+          } else {
+            // หากไม่พบ pid
+            res.status(404).json({ message: "pid not found" });
+          }
+        }
+      });
+    }
+  });
+});
+
+router.get("/scorecompare/:pid/:date", (req, res) => {
+  const { pid, date } = req.params;
+  conn.query('select * from score WHERE pid = ? AND date = ?',[pid, date], (err, result, fields)=>{
+    if(err){
+      res.status(500);
+    }
+    res.json(result);
+  });
+});  
 
 
   router.get("/user/:uidp", (req, res) => {
@@ -141,43 +231,80 @@ router.get("/", (req, res) => {
   
   router.get("/sql/:name/:email/:password", (req, res) => {
     const { name, email, password } = req.params;
-      let insertUserQuery = "INSERT INTO `user`(`name`, `email`, `password`, `type`) VALUES (?,?,?,1)";
-      insertUserQuery = mysql.format(insertUserQuery, [name, email, password]);
-      conn.query(insertUserQuery, (err, result) => {
-        if (err) {
-          res.status(500);
-        }
+    let insertUserQuery = "INSERT INTO `user`(`name`, `email`, `password`, `type`) VALUES (?,?,?,1)";
+    insertUserQuery = mysql.format(insertUserQuery, [name, email, password]);
+    conn.query(insertUserQuery, (err, result) => {
+      if (err) {
+        res.status(500).json({ error: "Internal Server Error" });
+        return; // ออกจากฟังก์ชันหลังจากส่งคำตอบ
+      }
   
-        res.status(201).json({
-          affected_row: result.affectedRows,
-          last_idx: result.insertId,
+      const userId = result.insertId;
+      const insertPromises = [];
+
+      // สร้าง Promise สำหรับแต่ละรูปภาพ
+      for (let i = 1; i <= 5; i++) {
+        const insertPictureQuery = mysql.format("INSERT INTO `picture`(`uid`, `img_length`) VALUES (?,?)", [userId, i]);
+        const promise = new Promise((resolve, reject) => {
+          setTimeout(() => {
+            conn.query(insertPictureQuery, (err, pictureResult) => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve(pictureResult);
+              }
+            });
+          }, i * 500); // เพิ่มช่วงเวลาระหว่างแต่ละรูปภาพ
         });
-      });
+        insertPromises.push(promise);
+      }
+
+      // รอให้ทุก Promise เสร็จสิ้นแล้วส่งคำตอบกลับ
+      Promise.all(insertPromises)
+        .then(() => {
+          // เมื่อทุกอย่างเสร็จสมบูรณ์ ทำการดึงข้อมูลรูปภาพจากฐานข้อมูลอีกครั้งเพื่อแสดงผล
+          conn.query("SELECT * FROM `picture` WHERE `uid` = ? ORDER BY `img_length` ASC", [userId], (err, pictureResults) => {
+            if (err) {
+              console.error("Error fetching picture data:", err);
+              res.status(500).json({ error: "Internal Server Error" });
+            } else {
+              res.status(201).json({
+                user_affected_row: result.affectedRows,
+                user_last_idx: userId,
+                picture_data: pictureResults
+              });
+            }
+          });
+        })
+        .catch((err) => {
+          console.error("Error:", err);
+          res.status(500).json({ error: "Internal Server Error" });
+        });
     });
-  ;
+});
+
+  
   
 //--ดึงรูปแบบRandom--//
-  router.get("/picture", (req, res) => {
-    const sql = "SELECT * FROM picture";
-    conn.query(sql, (err, result) => {
-      if (err) {
-        res.json(err);
-      } else {
-        const randomIndex: number[] = [];
-  
-        while (randomIndex.length < 2) {
-          const index = Math.floor(Math.random() * result.length);
-          if (!randomIndex.includes(index)) {
-            randomIndex.push(index);
-          }
+router.get("/picture", (req, res) => {
+  const sql = "SELECT * FROM picture WHERE img IS NOT NULL AND namepic IS NOT NULL";
+  conn.query(sql, (err, result) => {
+    if (err) {
+      res.json(err);
+    } else {
+      const randomIndex: number[] = [];
+      while (randomIndex.length < 2) {
+        const index = Math.floor(Math.random() * result.length);
+        if (!randomIndex.includes(index)) {
+          randomIndex.push(index);
         }
-  
-        const randomPictures = randomIndex.map((index) => result[index]);
-  
-        res.json(randomPictures);
       }
-    });
+      const randomPictures = randomIndex.map((index) => result[index]);
+      res.json(randomPictures);
+    }
   });
+});
+
 
 
   
@@ -193,35 +320,46 @@ router.get("/", (req, res) => {
   });
  
   //--อัพเดตคะแนน--//
-  router.get("/update1/:result1/:picID", (req, res) => {
-    let pictureId = req.params.picID;
-    let updateScore1:Pictures = {
-        pid: pictureId, 
-        totalVote: req.params.result1,
-    };
+  router.get("/update/:score/:picID", (req, res) => {
+    const { score, picID } = req.params;
 
-    // ดึงคะแนนเก่าจากฐานข้อมูล
-    let sqlOldScore = "SELECT `totalVote` FROM `picture` WHERE `pid` = ?";
-    conn.query(sqlOldScore, [pictureId], (err, result) => {
-        if (err) throw err;
-        let oldScore = result[0].totalVote;
-
-        // อัปเดตคะแนนใหม่ลงในฐานข้อมูล
         let sqlUpdateScore = "UPDATE `picture` SET `totalVote` = ? WHERE `pid` = ?";
-        sqlUpdateScore = mysql.format(sqlUpdateScore, [updateScore1.totalVote, updateScore1.pid]);
+        sqlUpdateScore = mysql.format(sqlUpdateScore, [score, picID]);
         conn.query(sqlUpdateScore, (err, result) => {
             if (err) throw err;
-
-            // เพิ่มข้อมูลเกี่ยวกับ old_score และ updated_at ลงในตาราง score_history
-            let sqlInsertScoreHistory = "INSERT INTO `score_history` (`pid`, `old_score`, `updated_at`) VALUES (?, ?, ?)";
-            sqlInsertScoreHistory = mysql.format(sqlInsertScoreHistory, [pictureId, oldScore, new Date()]);
-            conn.query(sqlInsertScoreHistory, (err, result) => {
-                if (err)throw err;
-                res.status(201).json({ message: "Update and log old score and update date successfully", affected_row: result.affectedRows });
+            res.json(result);
             });
         });
-    });
-});
+
+//   router.get("/update1/:result1/:picID", (req, res) => {
+//     let pictureId = req.params.picID;
+//     let updateScore1:Pictures = {
+//         pid: pictureId, 
+//         totalVote: req.params.result1,
+//     };
+
+//     // ดึงคะแนนเก่าจากฐานข้อมูล
+//     let sqlOldScore = "SELECT `totalVote` FROM `picture` WHERE `pid` = ?";
+//     conn.query(sqlOldScore, [pictureId], (err, result) => {
+//         if (err) throw err;
+//         let oldScore = result[0].totalVote;
+
+//         // อัปเดตคะแนนใหม่ลงในฐานข้อมูล
+//         let sqlUpdateScore = "UPDATE `picture` SET `totalVote` = ? WHERE `pid` = ?";
+//         sqlUpdateScore = mysql.format(sqlUpdateScore, [updateScore1.totalVote, updateScore1.pid]);
+//         conn.query(sqlUpdateScore, (err, result) => {
+//             if (err) throw err;
+
+//             // เพิ่มข้อมูลเกี่ยวกับ old_score และ updated_at ลงในตาราง score_history
+//             let sqlInsertScoreHistory = "INSERT INTO `score_history` (`pid`, `old_score`, `updated_at`) VALUES (?, ?, ?)";
+//             sqlInsertScoreHistory = mysql.format(sqlInsertScoreHistory, [pictureId, oldScore, new Date()]);
+//             conn.query(sqlInsertScoreHistory, (err, result) => {
+//                 if (err)throw err;
+//                 res.status(201).json({ message: "Update and log old score and update date successfully", affected_row: result.affectedRows });
+//             });
+//         });
+//     });
+// });
 
 
 router.get("/update2/:result2/:picID", (req, res) => {
@@ -254,15 +392,15 @@ router.get("/update2/:result2/:picID", (req, res) => {
   });
 });
 
-router.get("/rank", (req, res) => {
-  // ดึงข้อมูลจากตาราง picture และ score_history
+router.get("/rankall", (req, res) => {
+  // ดึงข้อมูลจากตาราง picture และ score
   let sql = `
-      SELECT p.*, p.totalVote - s.old_score as score_change, s.updated_at as latest_update
+      SELECT p.*, p.totalVote - s.old_score as score_change, s.date as latest_update
       FROM picture p
       LEFT JOIN (
-          SELECT pid, old_score, updated_at,
-          ROW_NUMBER() OVER (PARTITION BY pid ORDER BY updated_at DESC) as row_num
-          FROM score_history
+          SELECT pid, old_score, date,
+          ROW_NUMBER() OVER (PARTITION BY pid ORDER BY date DESC) as row_num
+          FROM score
       ) s ON p.pid = s.pid AND s.row_num = 1
       ORDER BY p.totalVote DESC;
   `;
@@ -274,6 +412,7 @@ router.get("/rank", (req, res) => {
       res.json(result);
   });
 });
+
 
 router.get("/rankupdate/:oldsc/:pid/:date", (req, res) => {
   const  { oldsc, pid, date }  = req.params;
@@ -292,6 +431,15 @@ router.get("/rankupdate/:oldsc/:pid/:date", (req, res) => {
   });
 ;
 
+router.get("/scoregraph/:pid/:date", (req, res) => { 
+  const { pid, date } = req.params;
+  conn.query('SELECT * FROM score WHERE pid = ? and date = ?',[pid, date], (err, result, fields)=>{
+    if(err){
+      res.status(500);
+    }
+    res.json(result);
+  });
+});
 
 
 
@@ -320,7 +468,8 @@ router.get("/oldrank/:date", (req, res) => {
     if (err) {
       res.status(500).send(err);
     } else {
-      // ตรวจสอบว่ามีข้อมูลหรือไม่ และจำนวนข้อมูลที่ต้องการ
+
+      //ตรวจสอบว่ามีข้อมูลหรือไม่ และจำนวนข้อมูลที่ต้องการ
       if (result.length > 0) {
         // เก็บข้อมูลที่มีคะแนนสูงสุด
         let topScores = [];
@@ -344,25 +493,42 @@ router.get("/oldrank/:date", (req, res) => {
  });
 });
 
-// // สมมติว่าคุณมี endpoint สำหรับตรวจสอบข้อมูลในตาราง rank
-// router.get("/checkrank/:pid/:namepic/:old_score/:date", (req, res) => {
-//   const { pid, namepic, old_score, date } = req.params;
- 
-//   const sql = `
-//      SELECT * FROM rank
-//      WHERE pid = ? AND namepic = ? AND old_score = ? AND date = ?
-//   `;
- 
-//   conn.query(sql, [pid, namepic, old_score, date], (err, result) => {
-//      if (err) {
-//        res.status(500).send(err);
-//      } else {
-//        // ส่งกลับว่ามีข้อมูลหรือไม่
-//        res.json({ exists: result.length > 0 });
-//      }
-//   });
-//  });
- 
+router.get("/insertranked/:i/:pid/:oldsc/:date", (req, res) => {
+  const { i, oldsc, pid, date } = req.params;
+
+  // Check if data already exists in the rank table
+  const checkExistingQuery = "SELECT * FROM `rank` WHERE `pid` = ? AND `date` = ?";
+  conn.query(checkExistingQuery, [pid, date], (err, result) => {
+    if (err) {
+      res.status(500).send("Error occurred while checking existing data.");
+      return;
+    }
+
+    if (result.length > 0) {
+      console.log(`Data already exists for pid ${pid} on date ${date}`);
+      res.status(200).send("Data already exists for this date.");
+      return;
+    }
+
+    // Data does not exist, proceed with insertion
+    let insertUserQuery = "INSERT INTO `rank`(`rank_number`,`pid`, `old_score`,`date`) VALUES (?,?,?,?)";
+    insertUserQuery = mysql.format(insertUserQuery, [i, pid, oldsc, date]);
+    conn.query(insertUserQuery, (err, result) => {
+      if (err) {
+        console.error("Error occurred while inserting data:", err);
+        res.status(500).send("Error occurred while inserting data.");
+        return;
+      }
+
+      res.status(201).json({
+        affected_row: result.affectedRows,
+        last_idx: result.insertId,
+      });
+    });
+  });
+});
+
+
 
 router.get("/insertrank/:pid/:namepic/:oldsc/:date", (req, res) => {
   const { pid, namepic, oldsc, date } = req.params;
@@ -402,6 +568,32 @@ router.get("/insertrank/:pid/:namepic/:oldsc/:date", (req, res) => {
      }
   });
  });
+
+
+
+
+// // สมมติว่าคุณมี endpoint สำหรับตรวจสอบข้อมูลในตาราง rank
+// router.get("/checkrank/:pid/:namepic/:old_score/:date", (req, res) => {
+//   const { pid, namepic, old_score, date } = req.params;
+ 
+//   const sql = `
+//      SELECT * FROM rank
+//      WHERE pid = ? AND namepic = ? AND old_score = ? AND date = ?
+//   `;
+ 
+//   conn.query(sql, [pid, namepic, old_score, date], (err, result) => {
+//      if (err) {
+//        res.status(500).send(err);
+//      } else {
+//        // ส่งกลับว่ามีข้อมูลหรือไม่
+//        res.json({ exists: result.length > 0 });
+//      }
+//   });
+//  });
+ 
+
+
+ 
  
 
 
