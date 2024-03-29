@@ -51,15 +51,15 @@ router.get("/picuser/:uid", (req, res) => {
 
 
 
-  // router.get("/checkEmPw/:email/:password", (req, res) => {
-  //   const { email, password } = req.params;
-  //   conn.query('select * from user where email = ? AND password = ?',[email, password], (err, result, fields)=>{
-  //     if(err){
-  //       res.status(500);
-  //     }
-  //     res.json(result);
-  //   });
-  // });
+  router.get("/checkEmPw/:email/:password", (req, res) => {
+    const { email, password } = req.params;
+    conn.query('select * from user where email = ? AND password = ?',[email, password], (err, result, fields)=>{
+      if(err){
+        res.status(500);
+      }
+      res.json(result);
+    });
+  });
 
 
   //profile
